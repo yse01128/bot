@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*- 
 
-################ Server Ver. 21 (2020. 9. 2.) #####################
+################ Server Ver. 23 (2020. 11. 2.) #####################
 
 import sys, os
 import asyncio, discord, aiohttp
@@ -223,25 +223,27 @@ def init():
 	try:
 		basicSetting.append(inputData[0][11:])     #basicSetting[0] : timezone
 		basicSetting.append(inputData[8][15:])     #basicSetting[1] : before_alert
-		basicSetting.append(inputData[10][10:])     #basicSetting[2] : mungChk
+		basicSetting.append(inputData[10][11:])     #basicSetting[2] : mungChk1
 		basicSetting.append(inputData[9][16:])     #basicSetting[3] : before_alert1
-		basicSetting.append(inputData[13][14:16])  #basicSetting[4] : restarttime 시
-		basicSetting.append(inputData[13][17:])    #basicSetting[5] : restarttime 분
+		basicSetting.append(inputData[14][14:16])  #basicSetting[4] : restarttime 시
+		basicSetting.append(inputData[14][17:])    #basicSetting[5] : restarttime 분
 		basicSetting.append(inputData[1][15:])     #basicSetting[6] : voice채널 ID
 		basicSetting.append(inputData[2][14:])     #basicSetting[7] : text채널 ID
 		basicSetting.append(inputData[3][16:])     #basicSetting[8] : 사다리 채널 ID
-		basicSetting.append(inputData[12][14:])    #basicSetting[9] : !ㅂ 출력 수
-		basicSetting.append(inputData[16][11:])    #basicSetting[10] : json 파일명
+		basicSetting.append(inputData[13][14:])    #basicSetting[9] : !ㅂ 출력 수
+		basicSetting.append(inputData[17][11:])    #basicSetting[10] : json 파일명
 		basicSetting.append(inputData[4][17:])     #basicSetting[11] : 정산 채널 ID
-		basicSetting.append(inputData[15][12:])    #basicSetting[12] : sheet 이름
-		basicSetting.append(inputData[14][16:])    #basicSetting[13] : restart 주기
-		basicSetting.append(inputData[17][12:])    #basicSetting[14] : 시트 이름
-		basicSetting.append(inputData[18][12:])    #basicSetting[15] : 입력 셀
-		basicSetting.append(inputData[19][13:])    #basicSetting[16] : 출력 셀
-		basicSetting.append(inputData[11][13:])     #basicSetting[17] : 멍삭제횟수
+		basicSetting.append(inputData[16][12:])    #basicSetting[12] : sheet 이름
+		basicSetting.append(inputData[15][16:])    #basicSetting[13] : restart 주기
+		basicSetting.append(inputData[18][12:])    #basicSetting[14] : 시트 이름
+		basicSetting.append(inputData[19][12:])    #basicSetting[15] : 입력 셀
+		basicSetting.append(inputData[20][13:])    #basicSetting[16] : 출력 셀
+		basicSetting.append(inputData[12][13:])     #basicSetting[17] : 멍삭제횟수
 		basicSetting.append(inputData[5][14:])     #basicSetting[18] : kill채널 ID
 		basicSetting.append(inputData[6][16:])     #basicSetting[19] : racing 채널 ID
 		basicSetting.append(inputData[7][14:])     #basicSetting[20] : item 채널 ID
+		basicSetting.append(inputData[21][12:])     #basicSetting[21] : voice_use
+		basicSetting.append(inputData[11][11:])     #basicSetting[22] : mungChk2
 	except:
 		raise Exception("[test_setting.ini] 파일 양식을 확인하세요.")
 
@@ -320,12 +322,12 @@ def init():
 		if endTime < tmp_now :			
 			endTime = endTime + datetime.timedelta(days=int(basicSetting[13]))
 	
-	bossNum = int(len(boss_inputData)/5)
+	bossNum = int(len(boss_inputData)/6)
 
 	fixed_bossNum = int(len(fixed_inputData)/6) 
 	
 	for i in range(bossNum):
-		tmp_bossData.append(boss_inputData[i*5:i*5+5])
+		tmp_bossData.append(boss_inputData[i*6:i*6+6])
 
 	for i in range(fixed_bossNum):
 		tmp_fixed_bossData.append(fixed_inputData[i*6:i*6+6]) 
@@ -348,6 +350,7 @@ def init():
 		f.append(tmp_bossData[j][4][13:])         #bossData[4] : 젠 알림멘트
 		f.append(tmp_bossData[j][1][tmp_len+1:])  #bossData[5] : 분
 		f.append('')                              #bossData[6] : 메세지
+		f.append(tmp_bossData[j][5][11:])		  #bossData[8] : 멍체크시간종류
 		bossData.append(f)
 		f = []
 		bossTime.append(datetime.datetime.now()+datetime.timedelta(days=365, hours = int(basicSetting[0])))
@@ -457,7 +460,7 @@ async def MakeSound(saveSTR, filename):
 	if aws_key != "" and aws_secret_key != "":
 		polly = boto3.client("polly", aws_access_key_id = aws_key, aws_secret_access_key = aws_secret_key, region_name = "eu-west-1")
 
-		s = '<speak><prosody rate="' + str(100) + '%">' +  saveSTR + '</prosody></speak>'
+		s = '<speak><prosody rate="' + str(95) + '%">' +  saveSTR + '</prosody></speak>'
 
 		response = polly.synthesize_speech(
 			TextType = "ssml",
@@ -472,10 +475,13 @@ async def MakeSound(saveSTR, filename):
 			mp3file.write(data)
 	else:	
 		tts = gTTS(saveSTR, lang = 'ko')
-		tts.save(f"./{filename}.mp3")
+		tts.save(f"./{filename}.wav")
 
 #mp3 파일 재생함수	
 async def PlaySound(voiceclient, filename):
+	if basicSetting[21] != "1":
+		return
+
 	source = discord.FFmpegPCMAudio(filename)
 	try:
 		voiceclient.play(source)
@@ -486,6 +492,7 @@ async def PlaySound(voiceclient, filename):
 		await asyncio.sleep(1)
 	voiceclient.stop()
 	source.cleanup()
+	return
 
 #my_bot.db 저장하기
 async def dbSave():
@@ -576,7 +583,10 @@ async def dbLoad():
 					tmp_now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
 					tmp_now = tmp_now.replace(year = int(years1), month = int(months1), day = int(days1), hour=int(hours1), minute=int(minutes1), second = int(seconds1))
 
-					tmp_now_chk = tmp_now + datetime.timedelta(minutes = int(basicSetting[2]))
+					if bossData[j][7] == "1":
+						tmp_now_chk = tmp_now + datetime.timedelta(minutes = int(basicSetting[2]))
+					else:
+						tmp_now_chk = tmp_now + datetime.timedelta(minutes = int(basicSetting[22]))
 
 					if tmp_now_chk < now2 : 
 						deltaTime = datetime.timedelta(hours = int(bossData[j][1]), minutes = int(bossData[j][5]))
@@ -785,7 +795,14 @@ class taskCog(commands.Cog):
 			if ctx.voice_client.is_playing():
 				ctx.voice_client.stop()
 			await ctx.voice_client.disconnect(force=True)
+
+		if basicSetting[21] != "1":
+			print("명치복구완료!")
+			await dbLoad()
+			await self.bot.get_channel(channel).send( '< 다시 왔습니다!(보이스 미사용) >', tts=False)
+
 		boss_task = asyncio.Task(self.boss_check())
+		return
 
 	async def boss_check(self):
 		await self.bot.wait_until_ready()
@@ -831,11 +848,12 @@ class taskCog(commands.Cog):
 		
 		if chflg == 1 : 
 			if len(self.bot.voice_clients) == 0 :
-				await self.bot.get_channel(basicSetting[6]).connect(reconnect=True)
-				if self.bot.voice_clients[0].is_connected() :
-					await dbLoad()
-					await self.bot.get_channel(channel).send( '< 다시 왔습니다! >', tts=False)
-					print("명치복구완료!")
+				if basicSetting[21] == "1":
+					await self.bot.get_channel(basicSetting[6]).connect(reconnect=True)
+					if self.bot.voice_clients[0].is_connected() :
+						await dbLoad()
+						await self.bot.get_channel(channel).send( '< 다시 왔습니다! >', tts=False)
+						print("명치복구완료!")
 
 		while not self.bot.is_closed():
 			############ 워닝잡자! ############
@@ -853,7 +871,8 @@ class taskCog(commands.Cog):
 			now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
 			priv0 = now+datetime.timedelta(minutes=int(basicSetting[3]))
 			priv = now+datetime.timedelta(minutes=int(basicSetting[1]))
-			aftr = now+datetime.timedelta(minutes=int(0-int(basicSetting[2])))
+			tmp_aftr1 = now+datetime.timedelta(minutes=int(0-int(basicSetting[2])))
+			tmp_aftr2 = now+datetime.timedelta(minutes=int(0-int(basicSetting[22])))
 
 			if channel != '':			
 				################ 보탐봇 재시작 ################ 
@@ -896,7 +915,8 @@ class taskCog(commands.Cog):
 								fixed_bossFlag0[i] = True
 								await self.bot.get_channel(channel).send("```" + fixed_bossData[i][0] + ' ' + basicSetting[3] + '분 전 ' + fixed_bossData[i][3] +' [' +  fixed_bossTime[i].strftime('%H:%M:%S') + ']```', tts=False)
 								try:
-									await PlaySound(self.bot.voice_clients[0], './sound/' + fixed_bossData[i][0] + '알림1.mp3')
+									if basicSetting[21] == "1":
+										await PlaySound(self.bot.voice_clients[0], './sound/' + fixed_bossData[i][0] + '알림1.mp3')
 								except:
 									pass
 
@@ -907,7 +927,8 @@ class taskCog(commands.Cog):
 								fixed_bossFlag[i] = True
 								await self.bot.get_channel(channel).send("```" + fixed_bossData[i][0] + ' ' + basicSetting[1] + '분 전 ' + fixed_bossData[i][3] +' [' +  fixed_bossTime[i].strftime('%H:%M:%S') + ']```', tts=False)
 								try:
-									await PlaySound(self.bot.voice_clients[0], './sound/' + fixed_bossData[i][0] + '알림.mp3')
+									if basicSetting[21] == "1":
+										await PlaySound(self.bot.voice_clients[0], './sound/' + fixed_bossData[i][0] + '알림.mp3')
 								except:
 									pass
 					
@@ -922,7 +943,8 @@ class taskCog(commands.Cog):
 								)
 						await self.bot.get_channel(channel).send(embed=embed, tts=False)
 						try:
-							await PlaySound(self.bot.voice_clients[0], './sound/' + fixed_bossData[i][0] + '젠.mp3')
+							if basicSetting[21] == "1":
+								await PlaySound(self.bot.voice_clients[0], './sound/' + fixed_bossData[i][0] + '젠.mp3')
 						except:
 							pass
 
@@ -938,7 +960,8 @@ class taskCog(commands.Cog):
 								else :
 									await self.bot.get_channel(channel).send("```" + bossData[i][0] + ' ' + basicSetting[3] + '분 전 ' + bossData[i][3] + " [" +  bossTimeString[i] + "]```", tts=False)
 								try:
-									await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '알림1.mp3')
+									if basicSetting[21] == "1":
+										await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '알림1.mp3')
 								except:
 									pass
 
@@ -952,7 +975,8 @@ class taskCog(commands.Cog):
 								else :
 									await self.bot.get_channel(channel).send("```" + bossData[i][0] + ' ' + basicSetting[1] + '분 전 ' + bossData[i][3] + " [" +  bossTimeString[i] + "]```", tts=False)
 								try:
-									await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '알림.mp3')
+									if basicSetting[21] == "1":
+										await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '알림.mp3')
 								except:
 									pass
 
@@ -978,14 +1002,19 @@ class taskCog(commands.Cog):
 									)
 						await self.bot.get_channel(channel).send(embed=embed, tts=False)
 						try:
-							await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '젠.mp3')
+							if basicSetting[21] == "1":
+								await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '젠.mp3')
 						except:
 							pass
 
 					################ 보스 자동 멍 처리 ################ 
 					if bossMungFlag[i] == True:
+						if bossData[i][7] == "1":
+							aftr = tmp_aftr1
+						else:
+							aftr = tmp_aftr2
 						if (bossTime[i]+datetime.timedelta(days=-365)) <= aftr:
-							if basicSetting[2] != '0':
+							if basicSetting[2] != '0' and basicSetting[22] != '0' :
 								if int(basicSetting[17]) <= bossMungCnt[i] and int(basicSetting[17]) != 0:
 									bossTime[i] = datetime.datetime.now()+datetime.timedelta(days=365, hours = int(basicSetting[0]))
 									tmp_bossTime[i] =  datetime.datetime.now()+datetime.timedelta(days=365, hours = int(basicSetting[0]))
@@ -1022,7 +1051,8 @@ class taskCog(commands.Cog):
 											)
 										await self.bot.get_channel(channel).send(embed=embed, tts=False)
 										try:
-											await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '미입력.mp3')
+											if basicSetting[21] == "1":
+												await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '미입력.mp3')
 										except:
 											pass
 									################ 멍 보스 ################
@@ -1041,7 +1071,8 @@ class taskCog(commands.Cog):
 											)
 										await self.bot.get_channel(channel).send(embed=embed, tts=False)
 										try:
-											await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '멍.mp3')
+											if basicSetting[21] == "1":
+												await PlaySound(self.bot.voice_clients[0], './sound/' + bossData[i][0] + '멍.mp3')
 										except:
 											pass
 
@@ -1106,7 +1137,7 @@ class mainCog(commands.Cog):
 			await ctx.send(f"< 텍스트채널 [{ctx.message.channel.name}] 접속완료 >\n< 음성채널 접속 후 [{command[5][0]}] 명령을 사용 하세요 >", tts=False)
 			
 			print('< 텍스트채널 [' + self.bot.get_channel(basicSetting[7]).name + '] 접속완료>')
-			if basicSetting[6] != "":
+			if basicSetting[6] != "" and basicSetting[21] == "1":
 				await self.bot.get_channel(basicSetting[6]).connect(reconnect=True)
 				print('< 음성채널 [' + self.bot.get_channel(basicSetting[6]).name + '] 접속완료>')
 			if basicSetting[8] != "":
@@ -1166,7 +1197,8 @@ class mainCog(commands.Cog):
 				return await ctx.send(f"시간이 초과됐습니다. **[{curr_guild_info.name}]** 서버 **[{setting_channel_name}]** 채널에서 사용해주세요!")
 
 			if str(reaction) == "⭕":
-				await ctx.voice_client.disconnect(force=True)
+				if ctx.voice_client is not None:
+					await ctx.voice_client.disconnect(force=True)
 				basicSetting[6] = ""
 				basicSetting[7] = int(ctx.message.channel.id)
 
@@ -1208,10 +1240,12 @@ class mainCog(commands.Cog):
 			command_list += ','.join(command[11]) + ' [인원] [금액]\n'     #!분배
 			command_list += ','.join(command[12]) + ' [뽑을인원수] [아이디1] [아이디2]...\n'     #!사다리
 			command_list += ','.join(command[27]) + ' [아이디1] [아이디2]...(최대 12명)\n'     #!경주
+			command_list += ','.join(command[41]) + ' [추첨인원] (대기시간/초) *(메모)\n'    #!럭키박스
 			command_list += ','.join(command[35]) + ' [판매금액] (거래소세금)\n'     #!수수료
 			command_list += ','.join(command[36]) + ' [거래소금액] [실거래금액] (거래소세금)\n'     #!페이백
 			command_list += ','.join(command[13]) + ' [아이디]\n'     #!정산
 			command_list += ','.join(command[14]) + ' 또는 ' + ','.join(command[14]) + ' 0000, 00:00\n'     #!보스일괄
+			command_list += ','.join(command[40]) + ' 또는 ' + ','.join(command[40]) + ' 0000, 00:00\n'     #!멍일괄
 			command_list += ','.join(command[15]) + '\n'     #!q
 			command_list += ','.join(command[16]) + ' [할말]\n'     #!v
 			command_list += ','.join(command[17]) + '\n'     #!리젠
@@ -1258,8 +1292,9 @@ class mainCog(commands.Cog):
 	async def setting_(self, ctx):	
 		#print (ctx.message.channel.id)
 		if ctx.message.channel.id == basicSetting[7]:
-			setting_val = '보탐봇버전 : Server Ver. 21 (2020. 9. 2.)\n'
-			setting_val += '음성채널 : ' + self.bot.get_channel(basicSetting[6]).name + '\n'
+			setting_val = '보탐봇버전 : Server Ver. 23 (2020. 11. 2.)\n'
+			if basicSetting[6] != "" :
+				setting_val += '음성채널 : ' + self.bot.get_channel(basicSetting[6]).name + '\n'
 			setting_val += '텍스트채널 : ' + self.bot.get_channel(basicSetting[7]).name +'\n'
 			if basicSetting[8] != "" :
 				setting_val += '사다리채널 : ' + self.bot.get_channel(int(basicSetting[8])).name + '\n'
@@ -1273,7 +1308,12 @@ class mainCog(commands.Cog):
 				setting_val += '아이템채널 : ' + self.bot.get_channel(int(basicSetting[20])).name + '\n'
 			setting_val += '보스젠알림시간1 : ' + basicSetting[1] + ' 분 전\n'
 			setting_val += '보스젠알림시간2 : ' + basicSetting[3] + ' 분 전\n'
-			setting_val += '보스멍확인시간 : ' + basicSetting[2] + ' 분 후\n'
+			setting_val += '보스멍확인시간1 : ' + basicSetting[2] + ' 분 후\n'
+			setting_val += '보스멍확인시간2 : ' + basicSetting[22] + ' 분 후\n'
+			if basicSetting[21] == "0":
+				setting_val += '보이스사용여부 : 사용안함\n'
+			else:
+				setting_val += '보이스사용여부 : 사용중\n'
 			embed = discord.Embed(
 					title = "----- 설정내용 -----",
 					description= f'```{setting_val}```',
@@ -1281,7 +1321,7 @@ class mainCog(commands.Cog):
 					)
 			embed.add_field(
 					name="----- Special Thanks to. -----",
-					value= '```총무, 옹님, 공부중, 꽃신, 별빛, K.H.Sim, 쿠쿠, 팥빵, Bit```'
+					value= '```총무, 옹님, 공부중, 꽃신, 별빛, 크마, D.H.Kim, K.H.Sim, 쿠쿠, 오브로드, D.H.Oh, Bit, 팥빵, 천려, 이파리, 도미, 일깡, B.Park```'
 					)
 			await ctx.send(embed=embed, tts=False)
 		else:
@@ -1407,6 +1447,9 @@ class mainCog(commands.Cog):
 		global basicSetting
 
 		if ctx.message.channel.id == basicSetting[7]:
+			if basicSetting[21] != "1":
+				return await ctx.send('```보이스를 사용하지 않도록 설정되어 있습니다.```', tts=False)
+
 			if ctx.voice_client is None:
 				if ctx.author.voice:
 					await ctx.author.voice.channel.connect(reconnect = True)
@@ -1541,7 +1584,7 @@ class mainCog(commands.Cog):
 		global bossDateString
 
 		if ctx.message.channel.id == basicSetting[7]:
-			if basicSetting[2] != '0':
+			if basicSetting[2] != '0' and basicSetting[22] != '0':
 				for i in range(bossNum):
 					if bossMungFlag[i] == True:
 						bossTimeString[i] = tmp_bossTime[i].strftime('%H:%M:%S')
@@ -1800,47 +1843,48 @@ class mainCog(commands.Cog):
 		if ctx.message.channel.id == basicSetting[7]:
 			msg = ctx.message.content[len(ctx.invoked_with)+1:]
 			for i in range(bossNum):
-				tmp_msg = msg
-				if len(tmp_msg) > 3 :
-					if tmp_msg.find(':') != -1 :
-						chkpos = tmp_msg.find(':')
-						hours1 = tmp_msg[chkpos-2:chkpos]
-						minutes1 = tmp_msg[chkpos+1:chkpos+3]
-						now2 = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
-						tmp_now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
-						tmp_now = tmp_now.replace(hour=int(hours1), minute=int(minutes1))
+				if bossTimeString[i] == '99:99:99':
+					tmp_msg = msg
+					if len(tmp_msg) > 3 :
+						if tmp_msg.find(':') != -1 :
+							chkpos = tmp_msg.find(':')
+							hours1 = tmp_msg[chkpos-2:chkpos]
+							minutes1 = tmp_msg[chkpos+1:chkpos+3]
+							now2 = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+							tmp_now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+							tmp_now = tmp_now.replace(hour=int(hours1), minute=int(minutes1))
+						else:
+							chkpos = len(tmp_msg)-2
+							hours1 = tmp_msg[chkpos-2:chkpos]
+							minutes1 = tmp_msg[chkpos:chkpos+2]
+							now2 = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+							tmp_now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+							tmp_now = tmp_now.replace(hour=int(hours1), minute=int(minutes1))
 					else:
-						chkpos = len(tmp_msg)-2
-						hours1 = tmp_msg[chkpos-2:chkpos]
-						minutes1 = tmp_msg[chkpos:chkpos+2]
 						now2 = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
-						tmp_now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
-						tmp_now = tmp_now.replace(hour=int(hours1), minute=int(minutes1))
-				else:
-					now2 = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
-					tmp_now = now2
-					
-				bossFlag[i] = False
-				bossFlag0[i] = False
-				bossMungFlag[i] = False
-				bossMungCnt[i] = 1
+						tmp_now = now2
+						
+					bossFlag[i] = False
+					bossFlag0[i] = False
+					bossMungFlag[i] = False
+					bossMungCnt[i] = 1
 
-				if tmp_now > now2 :
-					tmp_now = tmp_now + datetime.timedelta(days=int(-1))
-					
-				if tmp_now < now2 : 
-					deltaTime = datetime.timedelta(hours = int(bossData[i][1]), minutes = int(bossData[i][5]))
-					while now2 > tmp_now :
-						tmp_now = tmp_now + deltaTime
-						bossMungCnt[i] = bossMungCnt[i] + 1
-					now2 = tmp_now
-					bossMungCnt[i] = bossMungCnt[i] - 1
-				else :
-					now2 = now2 + datetime.timedelta(hours = int(bossData[i][1]), minutes = int(bossData[i][5]))
-							
-				tmp_bossTime[i] = bossTime[i] = nextTime = now2
-				tmp_bossTimeString[i] = bossTimeString[i] = nextTime.strftime('%H:%M:%S')
-				tmp_bossDateString[i] = bossDateString[i] = nextTime.strftime('%Y-%m-%d')
+					if tmp_now > now2 :
+						tmp_now = tmp_now + datetime.timedelta(days=int(-1))
+						
+					if tmp_now < now2 : 
+						deltaTime = datetime.timedelta(hours = int(bossData[i][1]), minutes = int(bossData[i][5]))
+						while now2 > tmp_now :
+							tmp_now = tmp_now + deltaTime
+							bossMungCnt[i] = bossMungCnt[i] + 1
+						now2 = tmp_now
+						bossMungCnt[i] = bossMungCnt[i] - 1
+					else :
+						now2 = now2 + datetime.timedelta(hours = int(bossData[i][1]), minutes = int(bossData[i][5]))
+								
+					tmp_bossTime[i] = bossTime[i] = nextTime = now2
+					tmp_bossTimeString[i] = bossTimeString[i] = nextTime.strftime('%H:%M:%S')
+					tmp_bossDateString[i] = bossDateString[i] = nextTime.strftime('%Y-%m-%d')
 
 			await dbSave()
 			await dbLoad()
@@ -1851,6 +1895,82 @@ class mainCog(commands.Cog):
 		else:
 			return
 
+	################ 멍보스타임 일괄 설정 ################
+	@commands.command(name=command[40][0], aliases=command[40][1:])
+	async def mungBossInput_(self, ctx):
+		global basicSetting
+		global bossData
+		global fixed_bossData
+
+		global bossTime
+		global tmp_bossTime
+
+		global fixed_bossTime
+
+		global bossTimeString
+		global bossDateString
+		global tmp_bossTimeString
+		global tmp_bossDateString
+
+		global bossFlag
+		global bossFlag0
+		global bossMungFlag
+		global bossMungCnt
+		
+		if ctx.message.channel.id == basicSetting[7]:
+			msg = ctx.message.content[len(ctx.invoked_with)+1:]
+			for i in range(bossNum):
+				if bossData[i][2] == "1" and bossTimeString[i] == '99:99:99':
+					tmp_msg = msg
+					if len(tmp_msg) > 3 :
+						if tmp_msg.find(':') != -1 :
+							chkpos = tmp_msg.find(':')
+							hours1 = tmp_msg[chkpos-2:chkpos]
+							minutes1 = tmp_msg[chkpos+1:chkpos+3]
+							now2 = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+							tmp_now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+							tmp_now = tmp_now.replace(hour=int(hours1), minute=int(minutes1))
+						else:
+							chkpos = len(tmp_msg)-2
+							hours1 = tmp_msg[chkpos-2:chkpos]
+							minutes1 = tmp_msg[chkpos:chkpos+2]
+							now2 = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+							tmp_now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+							tmp_now = tmp_now.replace(hour=int(hours1), minute=int(minutes1))
+					else:
+						now2 = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+						tmp_now = now2
+						
+					bossFlag[i] = False
+					bossFlag0[i] = False
+					bossMungFlag[i] = False
+					bossMungCnt[i] = 1
+
+					if tmp_now > now2 :
+						tmp_now = tmp_now + datetime.timedelta(days=int(-1))
+						
+					if tmp_now < now2 : 
+						deltaTime = datetime.timedelta(hours = int(bossData[i][1]), minutes = int(bossData[i][5]))
+						while now2 > tmp_now :
+							tmp_now = tmp_now + deltaTime
+							bossMungCnt[i] = bossMungCnt[i] + 1
+						now2 = tmp_now
+						bossMungCnt[i] = bossMungCnt[i] - 1
+					else :
+						now2 = now2 + datetime.timedelta(hours = int(bossData[i][1]), minutes = int(bossData[i][5]))
+								
+					tmp_bossTime[i] = bossTime[i] = nextTime = now2
+					tmp_bossTimeString[i] = bossTimeString[i] = nextTime.strftime('%H:%M:%S')
+					tmp_bossDateString[i] = bossDateString[i] = nextTime.strftime('%Y-%m-%d')
+
+			await dbSave()
+			await dbLoad()
+			await dbSave()
+			
+			await ctx.send('<멍보스 일괄 입력 완료>', tts=False)
+			print ("<멍보스 일괄 입력 완료>")
+		else:
+			return
 
 	################ 가장 근접한 보스타임 출력 ################ 
 	@commands.command(name=command[15][0], aliases=command[15][1:])
@@ -1934,16 +2054,26 @@ class mainCog(commands.Cog):
 	@commands.command(name=command[16][0], aliases=command[16][1:])
 	async def playText_(self, ctx):
 		if ctx.message.channel.id == basicSetting[7]:
+			if basicSetting[21] != "1":
+				return await ctx.send('```보이스를 사용하지 않도록 설정되어 있습니다.```', tts=False)
+
 			msg = ctx.message.content[len(ctx.invoked_with)+1:]
 			sayMessage = msg
 			try:
 				await MakeSound(ctx.message.author.display_name +'님이, ' + sayMessage, './sound/say')
-				await ctx.send("```< " + ctx.author.display_name + " >님이 \"" + sayMessage + "\"```", tts=False)
-				await PlaySound(ctx.voice_client, './sound/say.mp3')
 			except:
-				await ctx.send( f"```[음성채널]에 접속되지 않은 상태입니다. 접속 후 사용해주세요!```")
+				await ctx.send( f"```음성파일 생성에 실패하였습니다.!(amazon polly 사용시 키 값을 확인하세요!)```")
 				return
-		else:
+			await ctx.send("```< " + ctx.author.display_name + " >님이 \"" + sayMessage + "\"```", tts=False)
+			try:
+				if aws_key != "" and aws_secret_key != "":
+					await PlaySound(ctx.voice_client, './sound/say.mp3')
+				else:
+					await PlaySound(ctx.voice_client, './sound/say.wav')
+			except:
+				await ctx.send( f"```음성파일 재생에 실패하였습니다. 접속에 문제가 있거나 음성채널에 접속 되지 않은 상태입니다.!```")
+				return
+		else:  
 			return
 
 	################ 리젠시간 출력 ################
@@ -2051,10 +2181,22 @@ class mainCog(commands.Cog):
 					aa.append(bossData[i][0])		                     #output_bossData[0] : 보스명
 					if bossMungFlag[i] == True :
 						aa.append(tmp_bossTime[i])                       #output_bossData[1] : 시간
+
+						# if (datetime.datetime.now() + datetime.timedelta(hours=int(basicSetting[0]))).strftime('%Y-%m-%d') == tmp_bossTime[i].strftime('%Y-%m-%d'):
+						# 	aa.append(tmp_bossTime[i].strftime('%H:%M:%S'))
+						# else:
+						# 	aa.append(f"[{tmp_bossTime[i].strftime('%Y-%m-%d')}] {tmp_bossTime[i].strftime('%H:%M:%S')}")
+
 						aa.append(tmp_bossTime[i].strftime('%H:%M:%S'))  #output_bossData[2] : 시간(00:00:00) -> 초빼기 : aa.append(tmp_bossTime[i].strftime('%H:%M'))  
 						aa.append('-')	                                 #output_bossData[3] : -
 					else :
 						aa.append(bossTime[i])                           #output_bossData[1] : 시간
+
+						# if (datetime.datetime.now() + datetime.timedelta(hours=int(basicSetting[0]))).strftime('%Y-%m-%d') == bossTime[i].strftime('%Y-%m-%d'):
+						# 	aa.append(bossTime[i].strftime('%H:%M:%S'))
+						# else:
+						# 	aa.append(f"[{bossTime[i].strftime('%Y-%m-%d')}] {bossTime[i].strftime('%H:%M:%S')}")
+
 						aa.append(bossTime[i].strftime('%H:%M:%S'))      #output_bossData[2] : 시간(00:00:00) -> 초빼기 : aa.append(bossTime[i].strftime('%H:%M'))  
 						aa.append('+')	                                 #output_bossData[3] : +
 					aa.append(bossData[i][2])                            #output_bossData[4] : 멍/미입력 보스
@@ -2212,11 +2354,23 @@ class mainCog(commands.Cog):
 					aa.append(bossData[i][0])		                     #output_bossData[0] : 보스명
 					if bossMungFlag[i] == True :
 						aa.append(tmp_bossTime[i])                       #output_bossData[1] : 시간
-						aa.append(tmp_bossTime[i].strftime('%H:%M:%S'))  #output_bossData[2] : 시간(00:00:00) -> 초빼기 : aa.append(tmp_bossTime[i].strftime('%H:%M'))
+
+						if (datetime.datetime.now() + datetime.timedelta(hours=int(basicSetting[0]))).strftime('%Y-%m-%d') == tmp_bossTime[i].strftime('%Y-%m-%d'):
+							aa.append(tmp_bossTime[i].strftime('%H:%M:%S'))
+						else:
+							aa.append(f"[{tmp_bossTime[i].strftime('%Y-%m-%d')}] {tmp_bossTime[i].strftime('%H:%M:%S')}")
+
+						# aa.append(tmp_bossTime[i].strftime('%H:%M:%S'))  #output_bossData[2] : 시간(00:00:00) -> 초빼기 : aa.append(tmp_bossTime[i].strftime('%H:%M'))
 						aa.append('-')	                                 #output_bossData[3] : -
 					else :
 						aa.append(bossTime[i])                           #output_bossData[1] : 시간
-						aa.append(bossTime[i].strftime('%H:%M:%S'))      #output_bossData[2] : 시간(00:00:00) -> 초빼기 : aa.append(bossTime[i].strftime('%H:%M'))
+
+						if (datetime.datetime.now() + datetime.timedelta(hours=int(basicSetting[0]))).strftime('%Y-%m-%d') == bossTime[i].strftime('%Y-%m-%d'):
+							aa.append(bossTime[i].strftime('%H:%M:%S'))
+						else:
+							aa.append(f"[{bossTime[i].strftime('%Y-%m-%d')}] {bossTime[i].strftime('%H:%M:%S')}")
+							
+						# aa.append(bossTime[i].strftime('%H:%M:%S'))      #output_bossData[2] : 시간(00:00:00) -> 초빼기 : aa.append(bossTime[i].strftime('%H:%M'))
 						aa.append('+')	                                 #output_bossData[3] : +
 					aa.append(bossData[i][2])                            #output_bossData[4] : 멍/미입력 보스
 					aa.append(bossMungCnt[i])	                         #output_bossData[5] : 멍/미입력횟수
@@ -3001,28 +3155,194 @@ class mainCog(commands.Cog):
 
 		return await ctx.send(result_rock_paper_scissors)
 
+	################ 보이스사용 ################ 
+	@commands.command(name=command[38][0], aliases=command[38][1:])
+	async def command_voice_use(self, ctx : commands.Context):
+		if ctx.message.channel.id != basicSetting[7]:
+			return
+
+		inidata_voice_use = repo.get_contents("test_setting.ini")
+		file_data_voice_use = base64.b64decode(inidata_voice_use.content)
+		file_data_voice_use = file_data_voice_use.decode('utf-8')
+		inputData_voice_use = file_data_voice_use.split('\n')
+		
+		for i in range(len(inputData_voice_use)):
+			if inputData_voice_use[i].startswith("voice_use ="):
+				inputData_voice_use[i] = f"voice_use = 1\r"
+				basicSetting[21] = "1"
+		
+		result_voice_use = '\n'.join(inputData_voice_use)
+		
+		contents = repo.get_contents("test_setting.ini")
+		repo.update_file(contents.path, "test_setting", result_voice_use, contents.sha)
+
+		if basicSetting[6] != "":
+			await self.bot.get_channel(basicSetting[6]).connect(reconnect=True)
+			if self.bot.voice_clients[0].is_connected() :
+				print("보이스 사용 설정 완료!")
+				return await ctx.send(f"```보이스를 사용하도록 설정하였습니다.!```")
+
+		return await ctx.send(f"```보이스 사용 설정이 완료 되었습니다!\n< 음성채널 접속 후 [{command[5][0]}] 명령을 사용 하세요 >```")
+
+	################ 보이스미사용 ################ 
+	@commands.command(name=command[39][0], aliases=command[39][1:])
+	async def command_voice_not_use(self, ctx : commands.Context):
+		if ctx.message.channel.id != basicSetting[7]:
+			return
+
+		if ctx.voice_client is not None:
+			if ctx.voice_client.is_playing():
+				ctx.voice_client.stop()
+			await ctx.voice_client.disconnect(force=True)
+
+		inidata_voice_use = repo.get_contents("test_setting.ini")
+		file_data_voice_use = base64.b64decode(inidata_voice_use.content)
+		file_data_voice_use = file_data_voice_use.decode('utf-8')
+		inputData_voice_use = file_data_voice_use.split('\n')
+		
+		for i in range(len(inputData_voice_use)):
+			if inputData_voice_use[i].startswith("voice_use ="):
+				inputData_voice_use[i] = f"voice_use = 0\r"
+				basicSetting[21] = "0"
+		
+		result_voice_use = '\n'.join(inputData_voice_use)
+		
+		contents = repo.get_contents("test_setting.ini")
+		repo.update_file(contents.path, "test_setting", result_voice_use, contents.sha)
+		return await ctx.send(f"```보이스를 사용하지 않도록 설정하였습니다.!```")
+
+	################ 럭키박스 ################ 
+	@commands.command(name=command[41][0], aliases=command[41][1:])
+	async def command_randombox_game(self, ctx : commands.Context, *, args : str = None):
+		if ctx.message.channel.id != basicSetting[7] and ctx.message.channel.id != basicSetting[19]:
+			return
+
+		if not args:
+			return await ctx.send(f'```명령어 [추첨인원] (대기시간/초) *(메모) 형태로 입력해주시기 바랍나다.```')
+
+		memo_data : str = ""
+		waiting_time : int = 30
+
+		if args.find("*") == -1:
+			input_game_data = args.split()
+		else:
+			input_game_data = args[:args.find("*")-1].split()
+			memo_data = args[args.find("*")+1:]
+
+		try:
+			num_cong = int(input_game_data[0])  # 뽑을 인원
+			if num_cong <= 0:
+				return await ctx.send(f'```추첨인원이 0보다 작거나 같습니다. 재입력 해주세요```')
+		except ValueError:
+			return await ctx.send('```추첨인원은 숫자로 입력 바랍니다\nex)!럭키박스 1```')
+
+		if len(input_game_data) >= 2:
+			waiting_time : int = 30
+			try:
+				waiting_time = int(input_game_data[1])  # 대기시간
+				if waiting_time <= 0 :
+					return await ctx.send(f'```대기시간이 0보다 작거나 같습니다. 재입력 해주세요```')
+			except ValueError:
+				return await ctx.send(f'```대기시간(초)는 숫자로 입력 바랍니다\nex)!럭키박스 1 60```')
+
+		reaction_emoji : list = ["✅", "❌"]
+
+		embed = discord.Embed(title  = f"📦 럭키박스! 묻고 더블로 가! (잔여시간 : {waiting_time}초)", description = f"참가를 원하시면 ✅를 클릭해주세요!", timestamp =datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=int(basicSetting[0])))),
+			color=0x00ff00
+			)
+		if memo_data != "":
+			embed.add_field(name = "📜 메모", value =  f"```{memo_data}```", inline=False)
+
+		game_message : discord.message.Message = await ctx.send(embed = embed)
+
+		for emoji in reaction_emoji:
+			await game_message.add_reaction(emoji)
+		
+		cache_msg = await ctx.fetch_message(game_message.id)
+
+		for i in range(waiting_time):
+			embed.title = f"📦 럭키박스! 묻고 더블로 가! (잔여시간 : {waiting_time - i}초)"			
+			await game_message.edit(embed=embed)
+			cache_msg = await ctx.fetch_message(game_message.id)
+			if cache_msg.reactions[1].count >= 2:
+				tmp_users = await cache_msg.reactions[1].users().flatten()
+				for user in tmp_users:
+					if user.id == ctx.author.id:
+						embed.title = f"😫 럭키박스! 취소! 😱"
+						embed.description = ""
+						await game_message.edit(embed=embed)	
+						return await ctx.send(f"```게임이 취소되었습니다.!```")
+			await asyncio.sleep(1)
+
+		if cache_msg.reactions[0].count == 1:
+			embed.title = f"😫 럭키박스! 추첨 실패! 😱"
+			embed.description = ""
+			await game_message.edit(embed=embed)
+			return await ctx.send(f"```참여자가 없어 게임이 취소되었습니다.!```")
+
+		if num_cong >= cache_msg.reactions[0].count-1:
+			embed.title = f"😫 럭키박스! 추첨 실패! 😱"
+			embed.description = ""
+			await game_message.edit(embed=embed)		
+			return await ctx.send(f'```추첨인원이 참여인원과 같거나 많습니다. 재입력 해주세요```')
+
+		participant_users = await cache_msg.reactions[0].users().flatten()
+
+		del_index : int = 0
+		for i, user in enumerate(participant_users):
+			if self.bot.user.id == user.id:
+				del_index = i
+		del participant_users[del_index]
+
+		user_name_list : list = []
+		for user in participant_users:
+			user_name_list.append(user.display_name)
+
+		for _ in range(num_cong + 5):
+			random.shuffle(user_name_list)
+
+		for _ in range(num_cong + 5):
+			result_users = random.sample(user_name_list, num_cong)
+
+		lose_user = list(set(user_name_list)-set(result_users))
+
+		embed.title = f"🎉 럭키박스! 결과발표! 🎉"
+		embed.description = ""
+		embed.add_field(name = f"👥 참가자 ({len(user_name_list)}명)", value =  f"```fix\n{', '.join(user_name_list)}```", inline=False)
+		embed.add_field(name = f"😍 당첨 ({num_cong}명)", value =  f"```fix\n{', '.join(result_users)}```")
+		if len(lose_user) != 0:
+			embed.add_field(name = f"😭 낙첨 ({len(lose_user)}명)", value =  f"```{', '.join(lose_user)}```")
+		return await game_message.edit(embed=embed)
+
 	################ ?????????????? ################ 
 	@commands.command(name='!오빠')
 	async def brother1_(self, ctx):
-		await PlaySound(ctx.voice_client, './sound/오빠.mp3')
+		if basicSetting[21] != "1":
+			return await ctx.send('```보이스를 사용하지 않도록 설정되어 있습니다.```', tts=False)
+		return await PlaySound(ctx.voice_client, './sound/오빠.mp3')
 
 	@commands.command(name='!언니')
 	async def sister_(self, ctx):
-		await PlaySound(ctx.voice_client, './sound/언니.mp3')
+		if basicSetting[21] != "1":
+			return await ctx.send('```보이스를 사용하지 않도록 설정되어 있습니다.```', tts=False)
+		return await PlaySound(ctx.voice_client, './sound/언니.mp3')
 
 	@commands.command(name='!형')
 	async def brother2_(self, ctx):
-		await PlaySound(ctx.voice_client, './sound/형.mp3')
+		if basicSetting[21] != "1":
+			return await ctx.send('```보이스를 사용하지 않도록 설정되어 있습니다.```', tts=False)
+		return await PlaySound(ctx.voice_client, './sound/형.mp3')
 	
 	@commands.command(name='!TJ', aliases=['!tj'])
 	async def TJ_(self, ctx):
+		if basicSetting[21] != "1":
+			return await ctx.send('```보이스를 사용하지 않도록 설정되어 있습니다.```', tts=False)
 		resultTJ = random.randrange(1,9)
-		await PlaySound(ctx.voice_client, './sound/TJ' + str(resultTJ) +'.mp3')
+		return await PlaySound(ctx.voice_client, './sound/TJ' + str(resultTJ) +'.mp3')
 
 class IlsangDistributionBot(commands.AutoShardedBot):
 	def __init__(self):
 		super().__init__(command_prefix=[""], help_command=None)
-		self.session = aiohttp.ClientSession(loop=self.loop)
 
 	def run(self):
 		super().run(access_token, reconnect=True)
@@ -3054,8 +3374,8 @@ class IlsangDistributionBot(commands.AutoShardedBot):
 
 		await dbLoad()
 
-		if str(basicSetting[6]) in channel_voice_id and str(basicSetting[7]) in channel_id:
-			await self.get_channel(basicSetting[6]).connect(reconnect=True)
+		if str(basicSetting[7]) in channel_id:
+
 			channel = basicSetting[7]
 
 			setting_channel_name = self.get_channel(basicSetting[7]).name
@@ -3064,7 +3384,12 @@ class IlsangDistributionBot(commands.AutoShardedBot):
 
 			print('< 접속시간 [' + now.strftime('%Y-%m-%d ') + now.strftime('%H:%M:%S') + '] >')
 			print('< 텍스트채널 [' + self.get_channel(basicSetting[7]).name + '] 접속완료>')
-			print('< 음성채널 [' + self.get_channel(basicSetting[6]).name + '] 접속완료>')
+			if basicSetting[21] == "1" and str(basicSetting[6]) in channel_voice_id:
+				await self.get_channel(basicSetting[6]).connect(reconnect=True)
+				print('< 음성채널 [' + self.get_channel(basicSetting[6]).name + '] 접속완료>')
+			elif basicSetting[21] == "1" and str(basicSetting[6]) not in channel_voice_id:
+				print(f"설정된 음성채널 값이 없거나 잘못 됐습니다. 음성채널 접속 후 **[{command[5][0]}]** 명령어 먼저 입력하여 사용해주시기 바랍니다.")
+				await self.get_channel(int(basicSetting[7])).send(f"설정된 음성채널 값이 없거나 잘못 됐습니다. 음성채널 접속 후 **[{command[5][0]}]** 명령어 먼저 입력하여 사용해주시기 바랍니다.")
 			if basicSetting[8] != "":
 				if str(basicSetting[8]) in channel_id:
 					print('< 사다리채널 [' + self.get_channel(int(basicSetting[8])).name + '] 접속완료 >')
@@ -3389,7 +3714,6 @@ class IlsangDistributionBot(commands.AutoShardedBot):
 		raise error
 
 	async def close(self):
-		await self.session.close()
 		await super().close()
 		print("일상디코봇 종료 완료.")
 
