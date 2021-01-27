@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*- 
 
-################ Server Ver. 23 (2020. 11. 2.) #####################
+################ Server Ver. 26 (2021. 1. 27.) #####################
 
-import sys, os
+import sys, os, ctypes
 import asyncio, discord, aiohttp
 import random, re, datetime, time, logging
 from discord.ext import tasks, commands
@@ -26,6 +26,10 @@ logging.basicConfig(stream=log_stream, level=logging.WARNING)
 #handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 #ilsanglog.addHandler(handler)
 #####################################################
+
+if not discord.opus.is_loaded():
+	discord.opus.load_opus(ctypes.util.find_library('opus'))
+	print("opus_loaded")
 
 basicSetting = []
 bossData = []
@@ -79,6 +83,8 @@ item_Data = None
 tmp_racing_unit = None
 setting_channel_name = None
 
+boss_nick = {}
+
 access_token = os.environ["BOT_TOKEN"]			
 git_access_token = os.environ["GIT_TOKEN"]			
 git_access_repo = os.environ["GIT_REPO"]			
@@ -93,6 +99,62 @@ except:
 g = Github(git_access_token)
 repo = g.get_repo(git_access_repo)
 repo_restart = g.get_repo(git_access_repo_restart)
+
+#초성추출 함수
+def convertToInitialLetters(text):
+	CHOSUNG_START_LETTER = 4352
+	JAMO_START_LETTER = 44032
+	JAMO_END_LETTER = 55203
+	JAMO_CYCLE = 588
+
+	def isHangul(ch):
+		return ord(ch) >= JAMO_START_LETTER and ord(ch) <= JAMO_END_LETTER
+	
+	def isBlankOrNumber(ch):
+		return ord(ch) == 32 or ord(ch) >= 48 and ord(ch) <= 57
+
+	def convertNomalInitialLetter(ch):
+		dic_InitalLetter = {4352:"ㄱ"
+							,4353:"ㄲ"
+							,4354:"ㄴ"
+							,4355:"ㄷ"
+							,4356:"ㄸ"
+							,4357:"ㄹ"
+							,4358:"ㅁ"
+							,4359:"ㅂ"
+							,4360:"ㅃ"
+							,4361:"ㅅ"
+							,4362:"ㅆ"
+							,4363:"ㅇ"
+							,4364:"ㅈ"
+							,4365:"ㅉ"
+							,4366:"ㅊ"
+							,4367:"ㅋ"
+							,4368:"ㅌ"
+							,4369:"ㅍ"
+							,4370:"ㅎ"
+							,32:" "
+							,48:"0"
+							,49:"1"
+							,50:"2"
+							,51:"3"
+							,52:"4"
+							,53:"5"
+							,54:"6"
+							,55:"7"
+							,56:"8"
+							,57:"9"
+		}
+		return dic_InitalLetter[ord(ch)]
+
+	result = ""
+	for ch in text:
+		if isHangul(ch): #한글이 아닌 글자는 걸러냅니다.
+			result += convertNomalInitialLetter(chr((int((ord(ch)-JAMO_START_LETTER)/JAMO_CYCLE))+CHOSUNG_START_LETTER))
+		elif isBlankOrNumber(ch):
+			result += convertNomalInitialLetter(chr(int(ord(ch))))
+
+	return result
 
 def init():
 	global basicSetting
@@ -145,6 +207,8 @@ def init():
 
 	global tmp_racing_unit
 
+	global boss_nick
+
 	command = []
 	tmp_bossData = []
 	tmp_fixed_bossData = []
@@ -160,6 +224,7 @@ def init():
 	fc = []
 	fi = []
 	tmp_racing_unit = []
+	boss_nick = {}
 	
 	inidata = repo.get_contents("test_setting.ini")
 	file_data1 = base64.b64decode(inidata.content)
@@ -290,7 +355,6 @@ def init():
 			pass
 		fi = []
 
-
 	tmp_killtime = datetime.datetime.now().replace(hour=int(5), minute=int(0), second = int(0))
 	kill_Time = datetime.datetime.now()
 
@@ -354,10 +418,20 @@ def init():
 		for i in range(len(tmp_fixed_bossData[j])):
 			tmp_fixed_bossData[j][i] = tmp_fixed_bossData[j][i].strip()
 
+	tmp_boss_name_list : list = []
+	tmp_nick : list = []
+
 	############## 일반보스 정보 리스트 #####################
 	for j in range(bossNum):
+		tmp_nick = []
 		tmp_len = tmp_bossData[j][1].find(':')
-		f.append(tmp_bossData[j][0][11:])         #bossData[0] : 보스명
+		tmp_boss_name_list = tmp_bossData[j][0][11:].split(", ")
+		f.append(tmp_boss_name_list[0])         #bossData[0] : 보스명
+		if len(tmp_boss_name_list) > 1:
+			for nick in tmp_boss_name_list[1:]:
+				tmp_nick.append(nick)
+				tmp_nick.append(convertToInitialLetters(nick))			
+			boss_nick[tmp_boss_name_list[0]] = tmp_nick
 		f.append(tmp_bossData[j][1][10:tmp_len])  #bossData[1] : 시
 		f.append(tmp_bossData[j][2][13:])         #bossData[2] : 멍/미입력
 		f.append(tmp_bossData[j][3][20:])         #bossData[3] : 분전 알림멘트
@@ -403,6 +477,11 @@ def init():
 			if fixed_bossTime[j] < tmp_fixed_now :
 				while fixed_bossTime[j] < tmp_fixed_now :
 					fixed_bossTime[j] = fixed_bossTime[j] + datetime.timedelta(hours=int(fixed_bossData[j][5]), minutes=int(fixed_bossData[j][6]), seconds = int(0))
+			if  tmp_fixed_now + datetime.timedelta(minutes=int(basicSetting[1])) <= fixed_bossTime[j] < tmp_fixed_now + datetime.timedelta(minutes=int(basicSetting[3])):
+				fixed_bossFlag0[j] = True
+			if fixed_bossTime[j] < tmp_fixed_now + datetime.timedelta(minutes=int(basicSetting[1])):
+				fixed_bossFlag[j] = True
+				fixed_bossFlag0[j] = True
 		except:
 			raise Exception(f"[fixed_boss.ini] 파일 {tmp_fixed_bossData[j][0][11:]} 부분 양식을 확인하세요.")
 
@@ -495,8 +574,9 @@ async def MakeSound(saveSTR, filename):
 async def PlaySound(voiceclient, filename):
 	if basicSetting[21] != "1":
 		return
-
-	source = discord.FFmpegPCMAudio(filename)
+        
+	# source = discord.FFmpegPCMAudio(filename)
+	source = discord.FFmpegOpusAudio(filename)
 	try:
 		voiceclient.play(source)
 	except discord.errors.ClientException:
@@ -505,7 +585,7 @@ async def PlaySound(voiceclient, filename):
 	while voiceclient.is_playing():
 		await asyncio.sleep(1)
 	voiceclient.stop()
-	source.cleanup()
+	# source.cleanup()
 	return
 
 #my_bot.db 저장하기
@@ -622,6 +702,12 @@ async def dbLoad():
 						tmp_bossTimeString[j] = bossTimeString[j] = bossTime[j].strftime('%H:%M:%S')
 						tmp_bossDateString[j] = bossDateString[j] = bossTime[j].strftime('%Y-%m-%d')
 						
+					if  now2 + datetime.timedelta(minutes=int(basicSetting[1])) <= tmp_bossTime[j] < now2 + datetime.timedelta(minutes=int(basicSetting[3])):
+						bossFlag0[j] = True
+					if tmp_bossTime[j] < now2 + datetime.timedelta(minutes=int(basicSetting[1])):
+						bossFlag[j] = True
+						bossFlag0[j] = True
+			
 					bossData[j][6] = beforeBossData[i+1][tmp_msglen+2:len(beforeBossData[i+1])]
 
 					if beforeBossData[i+1][tmp_msglen-4:tmp_msglen-3] != 0 and beforeBossData[i+1][tmp_msglen-5:tmp_msglen-4] == ' ':
@@ -630,6 +716,76 @@ async def dbLoad():
 						bossMungCnt[j] = int(beforeBossData[i+1][tmp_msglen-5:tmp_msglen-4] + beforeBossData[i+1][tmp_msglen-4:tmp_msglen-3]) + tmp_mungcnt
 					else:
 						bossMungCnt[j] = 0
+
+		global FixedBossDateData
+		global fixed_bossFlag
+		global fixed_bossFlag0
+		global fixed_bossTime
+		global fixed_bossData
+
+		FixedBossDateData = []
+		fixed_bossFlag = []
+		fixed_bossFlag0 = []
+		fixed_bossTime = []
+		fixed_bossData = []
+		tmp_fixed_bossData = []
+		fb = []
+	
+		fixed_inidata = repo.get_contents("fixed_boss.ini")
+		file_data2 = base64.b64decode(fixed_inidata.content)
+		file_data2 = file_data2.decode('utf-8')
+		fixed_inputData = file_data2.split('\n')
+
+		for i in range(len(fixed_inputData)):
+			FixedBossDateData.append(fixed_inputData[i])
+
+		del(fixed_inputData[0])
+
+		for i in range(fixed_inputData.count('\r')):
+			fixed_inputData.remove('\r')
+
+		fixed_bossNum = int(len(fixed_inputData)/6)
+
+		for i in range(fixed_bossNum):
+			tmp_fixed_bossData.append(fixed_inputData[i*6:i*6+6]) 
+			
+		for j in range(fixed_bossNum):
+			for i in range(len(tmp_fixed_bossData[j])):
+				tmp_fixed_bossData[j][i] = tmp_fixed_bossData[j][i].strip()
+					
+		tmp_fixed_now = datetime.datetime.now() + datetime.timedelta(hours = int(basicSetting[0]))
+
+		############## 고정보스 정보 리스트 #####################	
+		for j in range(fixed_bossNum):
+			try:
+				tmp_fixed_len = tmp_fixed_bossData[j][1].find(':')
+				tmp_fixedGen_len = tmp_fixed_bossData[j][2].find(':')
+				fb.append(tmp_fixed_bossData[j][0][11:])                  #fixed_bossData[0] : 보스명
+				fb.append(tmp_fixed_bossData[j][1][11:tmp_fixed_len])     #fixed_bossData[1] : 시
+				fb.append(tmp_fixed_bossData[j][1][tmp_fixed_len+1:])     #fixed_bossData[2] : 분
+				fb.append(tmp_fixed_bossData[j][4][20:])                  #fixed_bossData[3] : 분전 알림멘트
+				fb.append(tmp_fixed_bossData[j][5][13:])                  #fixed_bossData[4] : 젠 알림멘트
+				fb.append(tmp_fixed_bossData[j][2][12:tmp_fixedGen_len])  #fixed_bossData[5] : 젠주기-시
+				fb.append(tmp_fixed_bossData[j][2][tmp_fixedGen_len+1:])  #fixed_bossData[6] : 젠주기-분
+				fb.append(tmp_fixed_bossData[j][3][12:16])                #fixed_bossData[7] : 시작일-년	
+				fb.append(tmp_fixed_bossData[j][3][17:19])                #fixed_bossData[8] : 시작일-월
+				fb.append(tmp_fixed_bossData[j][3][20:22])                #fixed_bossData[9] : 시작일-일
+				fixed_bossData.append(fb)
+				fb = []
+				fixed_bossFlag.append(False)
+				fixed_bossFlag0.append(False)
+				fixed_bossTime.append(tmp_fixed_now.replace(year = int(fixed_bossData[j][7]), month = int(fixed_bossData[j][8]), day = int(fixed_bossData[j][9]), hour=int(fixed_bossData[j][1]), minute=int(fixed_bossData[j][2]), second = int(0)))
+				if fixed_bossTime[j] < tmp_fixed_now :
+					while fixed_bossTime[j] < tmp_fixed_now :
+						fixed_bossTime[j] = fixed_bossTime[j] + datetime.timedelta(hours=int(fixed_bossData[j][5]), minutes=int(fixed_bossData[j][6]), seconds = int(0))
+				if  tmp_fixed_now + datetime.timedelta(minutes=int(basicSetting[1])) <= fixed_bossTime[j] < tmp_fixed_now + datetime.timedelta(minutes=int(basicSetting[3])):
+					fixed_bossFlag0[j] = True
+				if fixed_bossTime[j] < tmp_fixed_now + datetime.timedelta(minutes=int(basicSetting[1])):
+					fixed_bossFlag[j] = True
+					fixed_bossFlag0[j] = True
+			except:
+				raise Exception(f"[fixed_boss.ini] 파일 {tmp_fixed_bossData[j][0]} 부분 양식을 확인하세요.")
+
 		LoadChk = 0
 		print ("<불러오기 완료>")
 	else:
@@ -712,62 +868,6 @@ async def get_guild_channel_info(bot):
 			voice_channel_name.append(voice_channel.name)
 			voice_channel_id.append(str(voice_channel.id))
 	return text_channel_name, text_channel_id, voice_channel_name, voice_channel_id
-
-#초성추출 함수
-def convertToInitialLetters(text):
-	CHOSUNG_START_LETTER = 4352
-	JAMO_START_LETTER = 44032
-	JAMO_END_LETTER = 55203
-	JAMO_CYCLE = 588
-
-	def isHangul(ch):
-		return ord(ch) >= JAMO_START_LETTER and ord(ch) <= JAMO_END_LETTER
-	
-	def isBlankOrNumber(ch):
-		return ord(ch) == 32 or ord(ch) >= 48 and ord(ch) <= 57
-
-	def convertNomalInitialLetter(ch):
-		dic_InitalLetter = {4352:"ㄱ"
-							,4353:"ㄲ"
-							,4354:"ㄴ"
-							,4355:"ㄷ"
-							,4356:"ㄸ"
-							,4357:"ㄹ"
-							,4358:"ㅁ"
-							,4359:"ㅂ"
-							,4360:"ㅃ"
-							,4361:"ㅅ"
-							,4362:"ㅆ"
-							,4363:"ㅇ"
-							,4364:"ㅈ"
-							,4365:"ㅉ"
-							,4366:"ㅊ"
-							,4367:"ㅋ"
-							,4368:"ㅌ"
-							,4369:"ㅍ"
-							,4370:"ㅎ"
-							,32:" "
-							,48:"0"
-							,49:"1"
-							,50:"2"
-							,51:"3"
-							,52:"4"
-							,53:"5"
-							,54:"6"
-							,55:"7"
-							,56:"8"
-							,57:"9"
-		}
-		return dic_InitalLetter[ord(ch)]
-
-	result = ""
-	for ch in text:
-		if isHangul(ch): #한글이 아닌 글자는 걸러냅니다.
-			result += convertNomalInitialLetter(chr((int((ord(ch)-JAMO_START_LETTER)/JAMO_CYCLE))+CHOSUNG_START_LETTER))
-		elif isBlankOrNumber(ch):
-			result += convertNomalInitialLetter(chr(int(ord(ch))))
-
-	return result
 
 class taskCog(commands.Cog): 
 	def __init__(self, bot):
@@ -966,7 +1066,7 @@ class taskCog(commands.Cog):
 									pass
 
 					################ before_alert ################ 
-					if fixed_bossTime[i] <= priv and fixed_bossTime[i] > now:
+					if fixed_bossTime[i] <= priv and fixed_bossTime[i] > now and fixed_bossFlag0[i] == True :
 						if basicSetting[1] != '0' :
 							if fixed_bossFlag[i] == False:
 								fixed_bossFlag[i] = True
@@ -978,7 +1078,7 @@ class taskCog(commands.Cog):
 									pass
 					
 					################ 보스 젠 시간 확인 ################
-					if fixed_bossTime[i] <= now :
+					if fixed_bossTime[i] <= now and fixed_bossFlag[i] == True and fixed_bossFlag0[i] == True :
 						fixed_bossTime[i] = fixed_bossTime[i]+datetime.timedelta(hours=int(fixed_bossData[i][5]), minutes=int(fixed_bossData[i][6]), seconds = int(0))
 						fixed_bossFlag0[i] = False
 						fixed_bossFlag[i] = False
@@ -1011,7 +1111,7 @@ class taskCog(commands.Cog):
 									pass
 
 					################ before_alert ################
-					if bossTime[i] <= priv and bossTime[i] > now:
+					if bossTime[i] <= priv and bossTime[i] > now and bossFlag0[i] == True:
 						if basicSetting[1] != '0' :
 							if bossFlag[i] == False:
 								bossFlag[i] = True
@@ -1026,7 +1126,7 @@ class taskCog(commands.Cog):
 									pass
 
 					################ 보스 젠 시간 확인 ################ 
-					if bossTime[i] <= now :
+					if bossTime[i] <= now and bossFlag0[i] == True and bossFlag[i] == True :
 						#print ('if ', bossTime[i])
 						bossMungFlag[i] = True
 						tmp_bossTime[i] = bossTime[i]
@@ -1059,7 +1159,7 @@ class taskCog(commands.Cog):
 						else:
 							aftr = tmp_aftr2
 						if (bossTime[i]+datetime.timedelta(days=-365)) <= aftr:
-							if basicSetting[2] != '0' and basicSetting[22] != '0' :
+							if basicSetting[2] != '0' and basicSetting[22] != '0' and bossFlag[i] == True and bossFlag0[i] == True and bossMungFlag[i] == True :
 								if int(basicSetting[17]) <= bossMungCnt[i] and int(basicSetting[17]) != 0:
 									bossTime[i] = datetime.datetime.now()+datetime.timedelta(days=365, hours = int(basicSetting[0]))
 									tmp_bossTime[i] =  datetime.datetime.now()+datetime.timedelta(days=365, hours = int(basicSetting[0]))
@@ -1345,7 +1445,7 @@ class mainCog(commands.Cog):
 	async def setting_(self, ctx):	
 		#print (ctx.message.channel.id)
 		if ctx.message.channel.id == basicSetting[7]:
-			setting_val = '보탐봇버전 : Server Ver. 23 (2020. 11. 2.)\n'
+			setting_val = '보탐봇버전 : Server Ver. 26 (2021. 1. 27.)\n'
 			if basicSetting[6] != "" :
 				setting_val += '음성채널 : ' + self.bot.get_channel(basicSetting[6]).name + '\n'
 			setting_val += '텍스트채널 : ' + self.bot.get_channel(basicSetting[7]).name +'\n'
@@ -3709,6 +3809,13 @@ class IlsangDistributionBot(commands.AutoShardedBot):
 				channel = basicSetting[7]
 				message = msg
 
+				for command_str in ["컷", "멍", "예상", "삭제", "메모", "카톡켬", "카톡끔"]:
+					if command_str in message.content:
+						tmp_msg : str = ""
+						for key, value in boss_nick.items():
+							if message.content[:message.content.find(command_str)].strip() in value:
+								message.content = message.content.replace(message.content[:message.content.find(command_str)], key)
+
 				hello = message.content
 
 				for i in range(bossNum):
@@ -3761,6 +3868,13 @@ class IlsangDistributionBot(commands.AutoShardedBot):
 						tmp_bossTime[i] = bossTime[i] = nextTime = now2
 						tmp_bossTimeString[i] = bossTimeString[i] = nextTime.strftime('%H:%M:%S')
 						tmp_bossDateString[i] = bossDateString[i] = nextTime.strftime('%Y-%m-%d')
+
+						if  now2 + datetime.timedelta(minutes=int(basicSetting[1])) <= tmp_bossTime[i] < now2 + datetime.timedelta(minutes=int(basicSetting[3])):
+							bossFlag0[i] = True
+						if tmp_bossTime[i] < now2 + datetime.timedelta(minutes=int(basicSetting[1])):
+							bossFlag[i] = True
+							bossFlag0[i] = True
+
 						embed = discord.Embed(
 								description= '```다음 ' + bossData[i][0] + ' ' + bossTimeString[i] + '입니다.```',
 								color=0xff0000
@@ -3807,9 +3921,14 @@ class IlsangDistributionBot(commands.AutoShardedBot):
 									bossMungCnt[i] = bossMungCnt[i] + 1
 
 							tmp_bossTime[i] = bossTime[i] = temptime				
-
 							tmp_bossTimeString[i] = bossTimeString[i] = temptime.strftime('%H:%M:%S')
 							tmp_bossDateString[i] = bossDateString[i] = temptime.strftime('%Y-%m-%d')
+							if  tmp_now + datetime.timedelta(minutes=int(basicSetting[1])) <= tmp_bossTime[i] < tmp_now + datetime.timedelta(minutes=int(basicSetting[3])):
+								bossFlag0[i] = True
+							if tmp_bossTime[i] < tmp_now + datetime.timedelta(minutes=int(basicSetting[1])):
+								bossFlag[i] = True
+								bossFlag0[i] = True
+
 							embed = discord.Embed(
 									description= '```다음 ' + bossData[i][0] + ' ' + bossTimeString[i] + '입니다.```',
 									color=0xff0000
@@ -3826,9 +3945,14 @@ class IlsangDistributionBot(commands.AutoShardedBot):
 								bossMungCnt[i] = bossMungCnt[i] + 1
 
 								tmp_bossTime[i] = bossTime[i] = nextTime				
-
 								tmp_bossTimeString[i] = bossTimeString[i] = nextTime.strftime('%H:%M:%S')
 								tmp_bossDateString[i] = bossDateString[i] = nextTime.strftime('%Y-%m-%d')
+								if  tmp_now + datetime.timedelta(minutes=int(basicSetting[1])) <= tmp_bossTime[i] < tmp_now + datetime.timedelta(minutes=int(basicSetting[3])):
+									bossFlag0[i] = True
+								if tmp_bossTime[i] < tmp_now + datetime.timedelta(minutes=int(basicSetting[1])):
+									bossFlag[i] = True
+									bossFlag0[i] = True
+
 								embed = discord.Embed(
 										description= '```다음 ' + bossData[i][0] + ' ' + bossTimeString[i] + '입니다.```',
 										color=0xff0000
@@ -3875,6 +3999,12 @@ class IlsangDistributionBot(commands.AutoShardedBot):
 							tmp_bossTime[i] = bossTime[i] = nextTime = tmp_now
 							tmp_bossTimeString[i] = bossTimeString[i] = nextTime.strftime('%H:%M:%S')
 							tmp_bossDateString[i] = bossDateString[i] = nextTime.strftime('%Y-%m-%d')
+							if  now2 + datetime.timedelta(minutes=int(basicSetting[1])) <= tmp_bossTime[i] < now2 + datetime.timedelta(minutes=int(basicSetting[3])):
+								bossFlag0[i] = True
+							if tmp_bossTime[i] < now2 + datetime.timedelta(minutes=int(basicSetting[1])):
+								bossFlag[i] = True
+								bossFlag0[i] = True		
+									
 							embed = discord.Embed(
 									description= '```다음 ' + bossData[i][0] + ' ' + bossTimeString[i] + '입니다.```',
 									color=0xff0000
